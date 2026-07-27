@@ -1,0 +1,4 @@
+Ders sırasında öğrencilerin durumuna göre daha basit örnekler isterlerse kullanılabilecek simülasyonlar
+________________________________________________________________________________________________________
+Simulations that can be used during the lesson if students ask for simpler examples based on their level
+________________________________________________________________________________________________________
