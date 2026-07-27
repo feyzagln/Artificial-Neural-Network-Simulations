@@ -1,0 +1,4 @@
+Simulations that can be used if students request simpler examples during the lesson.
+___________________________________________________________________________________
+Ders sırasında daha basit örnekler isterlerse kullanılabilecek simülasyonlar
+___________________________________________________________________________________
