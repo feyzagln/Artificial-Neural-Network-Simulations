@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yapay Zeka Canavar Laboratuvarı</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #ffecd2;
+            background-image: linear-gradient(120deg, #ffecd2 0%, #fcb69f 100%);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        h1 { color: #d35400; font-size: 36px; margin-bottom: 5px; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
+        p.subtitle { font-size: 18px; font-weight: bold; color: #555; max-width: 800px; text-align: center; margin-bottom: 30px; }
+
+        .lab-container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1100px;
+            justify-content: space-between;
+        }
+
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 4px solid #fff;
+        }
+
+        h2 { margin-top: 0; text-align: center; font-size: 20px; color: #2c3e50; border-bottom: 2px dashed #ddd; padding-bottom: 10px; }
+
+        /* Sürgüler (Girişler) */
+        .feature-slider { display: flex; flex-direction: column; gap: 5px; }
+        .feature-slider label { font-weight: bold; display: flex; justify-content: space-between; }
+        input[type="range"] { width: 100%; accent-color: #e74c3c; cursor: pointer; }
+
+        /* Sinir Ağı Alanı */
+        .network-board {
+            position: relative;
+            flex-grow: 1;
+            background: #2c3e50;
+            border-radius: 20px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+            border: 4px solid #34495e;
+            min-height: 450px;
+            overflow: hidden;
+        }
+
+        svg { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+
+        .weight-btn {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+
+        .node { font-weight: 900; font-family: 'Nunito'; fill: white; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .node-emoji { font-size: 30px; pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+
+        /* Çıkış Alanı */
+        .result-panel {
+            width: 280px;
+            text-align: center;
+            background: #fff;
+            border: 8px solid #f1c40f;
+        }
+
+        .monster-display {
+            font-size: 100px;
+            margin: 20px 0;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .monster-name { font-size: 28px; font-weight: 900; color: #e74c3c; text-transform: uppercase; }
+        .logic-text { font-size: 14px; color: #7f8c8d; margin-top: 15px; font-style: italic; }
+
+    </style>
+</head>
+<body>
+
+    <h1>🧬 Yapay Zeka Canavar Laboratuvarı</h1>
+    <p class="subtitle">
+        Sürgüleri kaydırarak kendi canavarını yap! Sonra sinir ağındaki düğmelere tıklayarak YZ'nin beynindeki 
+        <span style="color:#2ecc71;">(Yeşil = Olumlu Etki)</span> ve <span style="color:#e74c3c;">(Kırmızı = Ters Etki)</span> bağlantılarını değiştir. Bakalım robota yanlış tahmin yaptırabilecek misin?
+    </p>
+
+    <div class="lab-container">
+        
+        <div class="panel">
+            <h2>1. Sensörler (Özellikler)</h2>
+            <div class="feature-slider">
+                <label>😈 Boynuz Boyutu <span id="val-horn">5</span></label>
+                <input type="range" id="input-horn" min="0" max="10" value="5" oninput="runNetwork()">
+            </div>
+            <div class="feature-slider">
+                <label>👁️ Göz İriliği <span id="val-eye">5</span></label>
+                <input type="range" id="input-eye" min="0" max="10" value="5" oninput="runNetwork()">
+            </div>
+            <div class="feature-slider">
+                <label>🧸 Tüylülük <span id="val-fur">5</span></label>
+                <input type="range" id="input-fur" min="0" max="10" value="5" oninput="runNetwork()">
+            </div>
+        </div>
+
+        <div class="network-board">
+            <svg id="brainCanvas"></svg>
+        </div>
+
+        <div class="panel result-panel">
+            <h2>3. YZ'nin Kararı</h2>
+            <div class="monster-display" id="final-emoji">❓</div>
+            <div class="monster-name" id="final-name">Bilinmiyor</div>
+            <div class="logic-text" id="logic-details">Yapay zeka düşünüyor...</div>
+        </div>
+
+    </div>
+
+    <script>
+        // Ağırlıklar: 1 (Güçlendirir), -1 (Azaltır), 0 (Etkisiz)
+        // Çocuklar tıklayarak bunları değiştirecek!
+        let weights = {
+            hornToScary: 1,  eyeToScary: 1,  furToScary: -1,
+            hornToCute: -1,  eyeToCute: 1,   furToCute: 1
+        };
+
+        const nodes = {
+            inputs: {
+                horn: { x: 80, y: 80, emoji: "😈" },
+                eye:  { x: 80, y: 225, emoji: "👁️" },
+                fur:  { x: 80, y: 370, emoji: "🧸" }
+            },
+            hidden: {
+                scary: { x: 300, y: 130, label: "Korkutucu Dedektifi" },
+                cute:  { x: 300, y: 320, label: "Sevimli Dedektifi" }
+            },
+            output: { x: 550, y: 225, label: "KARAR MERKEZİ" }
+        };
+
+        // Çocuklar çizgilere tıkladığında ne olacak?
+        function toggleWeight(key) {
+            if (weights[key] === 1) weights[key] = -1;
+            else if (weights[key] === -1) weights[key] = 0;
+            else weights[key] = 1;
+            runNetwork();
+        }
+
+        function drawLine(svg, start, end, weightKey) {
+            const w = weights[weightKey];
+            let color = "#bdc3c7"; // Gri (0)
+            let thickness = 2;
+            let symbol = "0";
+            
+            if (w === 1) { color = "#2ecc71"; thickness = 6; symbol = "+"; } // Yeşil
+            if (w === -1) { color = "#e74c3c"; thickness = 6; symbol = "-"; } // Kırmızı
+
+            // Çizgi
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", start.x); line.setAttribute("y1", start.y);
+            line.setAttribute("x2", end.x); line.setAttribute("y2", end.y);
+            line.setAttribute("stroke", color);
+            line.setAttribute("stroke-width", thickness);
+            line.style.transition = "all 0.3s";
+            svg.appendChild(line);
+
+            // Tıklanabilir Bağlantı Kutusu
+            const midX = (start.x + end.x) / 2;
+            const midY = (start.y + end.y) / 2;
+            
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            group.setAttribute("class", "weight-btn");
+            group.onclick = () => toggleWeight(weightKey);
+
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", midX - 15); rect.setAttribute("y", midY - 15);
+            rect.setAttribute("width", 30); rect.setAttribute("height", 30);
+            rect.setAttribute("rx", 15);
+            rect.setAttribute("fill", color);
+            rect.setAttribute("stroke", "#fff");
+            rect.setAttribute("stroke-width", 2);
+            group.appendChild(rect);
+
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", midX); text.setAttribute("y", midY + 2);
+            text.setAttribute("class", "node");
+            text.setAttribute("font-size", "20px");
+            text.textContent = symbol;
+            group.appendChild(text);
+
+            svg.appendChild(group);
+        }
+
+        function drawCircle(svg, x, y, r, fill, emoji, textLabel) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", x); circle.setAttribute("cy", y);
+            circle.setAttribute("r", r);
+            circle.setAttribute("fill", fill);
+            circle.setAttribute("stroke", "#fff");
+            circle.setAttribute("stroke-width", 3);
+            svg.appendChild(circle);
+
+            if (emoji) {
+                const emText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                emText.setAttribute("x", x); emText.setAttribute("y", y + 2);
+                emText.setAttribute("class", "node-emoji");
+                emText.textContent = emoji;
+                svg.appendChild(emText);
+            }
+
+            if (textLabel) {
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", x); text.setAttribute("y", y - r - 15);
+                text.setAttribute("class", "node");
+                text.setAttribute("font-size", "14px");
+                text.textContent = textLabel;
+                svg.appendChild(text);
+            }
+        }
+
+        function drawNetwork(scaryScore, cuteScore) {
+            const svg = document.getElementById('brainCanvas');
+            svg.innerHTML = ''; // Temizle
+
+            // 1. Çizgiler (Input -> Hidden)
+            drawLine(svg, nodes.inputs.horn, nodes.hidden.scary, 'hornToScary');
+            drawLine(svg, nodes.inputs.eye, nodes.hidden.scary, 'eyeToScary');
+            drawLine(svg, nodes.inputs.fur, nodes.hidden.scary, 'furToScary');
+            
+            drawLine(svg, nodes.inputs.horn, nodes.hidden.cute, 'hornToCute');
+            drawLine(svg, nodes.inputs.eye, nodes.hidden.cute, 'eyeToCute');
+            drawLine(svg, nodes.inputs.fur, nodes.hidden.cute, 'furToCute');
+
+            // 2. Çizgiler (Hidden -> Output) - Bunlar hep pozitif yeşil kalsın basitleştirmek için
+            const lineScaryOut = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lineScaryOut.setAttribute("x1", nodes.hidden.scary.x); lineScaryOut.setAttribute("y1", nodes.hidden.scary.y);
+            lineScaryOut.setAttribute("x2", nodes.output.x); lineScaryOut.setAttribute("y2", nodes.output.y);
+            lineScaryOut.setAttribute("stroke", "#bdc3c7"); lineScaryOut.setAttribute("stroke-width", scaryScore > cuteScore ? 6 : 2);
+            svg.appendChild(lineScaryOut);
+
+            const lineCuteOut = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lineCuteOut.setAttribute("x1", nodes.hidden.cute.x); lineCuteOut.setAttribute("y1", nodes.hidden.cute.y);
+            lineCuteOut.setAttribute("x2", nodes.output.x); lineCuteOut.setAttribute("y2", nodes.output.y);
+            lineCuteOut.setAttribute("stroke", "#bdc3c7"); lineCuteOut.setAttribute("stroke-width", cuteScore > scaryScore ? 6 : 2);
+            svg.appendChild(lineCuteOut);
+
+            // 3. Nöronlar
+            drawCircle(svg, nodes.inputs.horn.x, nodes.inputs.horn.y, 25, "#34495e", nodes.inputs.horn.emoji, "Boynuz");
+            drawCircle(svg, nodes.inputs.eye.x, nodes.inputs.eye.y, 25, "#34495e", nodes.inputs.eye.emoji, "Göz");
+            drawCircle(svg, nodes.inputs.fur.x, nodes.inputs.fur.y, 25, "#34495e", nodes.inputs.fur.emoji, "Tüy");
+
+            // Gizli Nöron Renkleri (Skora göre yoğunlaşır)
+            let scaryColor = scaryScore > 0 ? "#e67e22" : "#7f8c8d";
+            let cuteColor = cuteScore > 0 ? "#9b59b6" : "#7f8c8d";
+            
+            drawCircle(svg, nodes.hidden.scary.x, nodes.hidden.scary.y, 40, scaryColor, "🎃", nodes.hidden.scary.label);
+            drawCircle(svg, nodes.hidden.cute.x, nodes.hidden.cute.y, 40, cuteColor, "🌸", nodes.hidden.cute.label);
+
+            // Çıkış Nöronu
+            drawCircle(svg, nodes.output.x, nodes.output.y, 50, "#f1c40f", "🧠", nodes.output.label);
+        }
+
+        function runNetwork() {
+            // Sürgü değerlerini al (0 ile 10 arası)
+            let horn = parseInt(document.getElementById('input-horn').value);
+            let eye = parseInt(document.getElementById('input-eye').value);
+            let fur = parseInt(document.getElementById('input-fur').value);
+
+            document.getElementById('val-horn').innerText = horn;
+            document.getElementById('val-eye').innerText = eye;
+            document.getElementById('val-fur').innerText = fur;
+
+            // Yapay Zeka Hesaplaması (Ağırlık * Giriş)
+            let scaryScore = (horn * weights.hornToScary) + (eye * weights.eyeToScary) + (fur * weights.furToScary);
+            let cuteScore = (horn * weights.hornToCute) + (eye * weights.eyeToCute) + (fur * weights.furToCute);
+
+            // Çizimi Güncelle
+            drawNetwork(scaryScore, cuteScore);
+
+            // Sınıflandırma (Karar Mekanizması)
+            let resultEmoji = "";
+            let resultName = "";
+            let resultLogic = `Korkunçluk Puanı: ${scaryScore} <br> Sevimlilik Puanı: ${cuteScore}`;
+
+            if (scaryScore > cuteScore + 10) {
+                resultEmoji = "🐉"; resultName = "Vahşi Ejderha";
+            } else if (cuteScore > scaryScore + 10) {
+                resultEmoji = "🐰"; resultName = "Tüylü Tavşan";
+            } else if (scaryScore > 0 && cuteScore > 0) {
+                resultEmoji = "👾"; resultName = "Uzaylı Dost";
+            } else if (scaryScore < 0 && cuteScore < 0) {
+                resultEmoji = "🪨"; resultName = "Sıradan Bir Taş";
+            } else {
+                resultEmoji = "👹"; resultName = "Kafası Karışık Trol";
+            }
+
+            document.getElementById('final-emoji').innerText = resultEmoji;
+            document.getElementById('final-name').innerText = resultName;
+            document.getElementById('logic-details').innerHTML = resultLogic;
+        }
+
+        // Başlat
+        window.onload = runNetwork;
+
+    </script>
+</body>
+</html>

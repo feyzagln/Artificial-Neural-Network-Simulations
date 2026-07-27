@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sinir Ağı Sınıfı</title>
+  <style>
+    :root {
+      --bg-1: #0f172a;
+      --bg-2: #1e293b;
+      --card: rgba(15, 23, 42, 0.72);
+      --card-strong: rgba(15, 23, 42, 0.92);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #f59e0b;
+      --good: #22c55e;
+      --bad: #ef4444;
+      --line: rgba(148, 163, 184, 0.2);
+      --shadow: 0 20px 60px rgba(2, 6, 23, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 30%),
+        radial-gradient(circle at top right, rgba(245, 158, 11, 0.18), transparent 28%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    }
+
+    .page {
+      width: min(1200px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 22px 0 28px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 14px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(15, 23, 42, 0.64));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -90px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.28), transparent 70%);
+      filter: blur(2px);
+      pointer-events: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.7rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 78ch;
+      font-size: 1.04rem;
+      line-height: 1.7;
+      color: #dbeafe;
+    }
+
+    .layout {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr) 300px;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .card {
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 18px 18px 0;
+    }
+
+    .card-header h2 {
+      margin: 0 0 6px;
+      font-size: 1.15rem;
+    }
+
+    .card-header p {
+      margin: 0 0 8px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .panel-body {
+      padding: 16px 18px 18px;
+    }
+
+    .slider {
+      margin-bottom: 14px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .slider-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 0.98rem;
+    }
+
+    .slider-top strong {
+      font-size: 1rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .network {
+      position: relative;
+      min-height: 640px;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.54));
+    }
+
+    .network-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 18px;
+      height: 100%;
+      min-height: 600px;
+    }
+
+    .layer {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .layer-title {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 12px;
+      font-size: 0.86rem;
+      border-radius: 999px;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .node {
+      width: 124px;
+      min-height: 96px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 14px 12px;
+      position: relative;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+
+    .node::before {
+      content: attr(data-label);
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      background: rgba(2, 6, 23, 0.78);
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .node .emoji {
+      display: block;
+      font-size: 1.6rem;
+      margin-bottom: 4px;
+    }
+
+    .node .value {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .node .sub {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .node.active {
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18), inset 0 1px 0 rgba(255,255,255,0.08);
+      transform: translateY(-2px);
+    }
+
+    .node.good { background: linear-gradient(180deg, rgba(34, 197, 94, 0.22), rgba(255,255,255,0.05)); }
+    .node.warn { background: linear-gradient(180deg, rgba(245, 158, 11, 0.22), rgba(255,255,255,0.05)); }
+    .node.bad { background: linear-gradient(180deg, rgba(239, 68, 68, 0.2), rgba(255,255,255,0.05)); }
+    .node.blue { background: linear-gradient(180deg, rgba(56, 189, 248, 0.2), rgba(255,255,255,0.05)); }
+
+    .connections {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .connection {
+      position: absolute;
+      height: 4px;
+      border-radius: 999px;
+      transform-origin: left center;
+      opacity: 0.9;
+    }
+
+    .connection.good { background: linear-gradient(90deg, rgba(34,197,94,0.9), rgba(34,197,94,0.15)); }
+    .connection.bad { background: linear-gradient(90deg, rgba(239,68,68,0.9), rgba(239,68,68,0.15)); }
+    .connection.neutral { background: linear-gradient(90deg, rgba(148,163,184,0.9), rgba(148,163,184,0.15)); }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .result-box {
+      margin-top: 14px;
+      padding: 16px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .result-emoji {
+      font-size: 3rem;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .result-name {
+      font-size: 1.4rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .result-desc, .explain li, .mini-note {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.95rem;
+    }
+
+    .score-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .score-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .score-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.92rem;
+      color: #dbeafe;
+    }
+
+    .bar {
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: inherit;
+      width: 0%;
+      transition: width 180ms ease;
+    }
+
+    .fill.apple { background: linear-gradient(90deg, #f97316, #fb7185); }
+    .fill.banana { background: linear-gradient(90deg, #facc15, #f59e0b); }
+    .fill.watermelon { background: linear-gradient(90deg, #22c55e, #06b6d4); }
+    .fill.pear { background: linear-gradient(90deg, #84cc16, #22c55e); }
+
+    .explain {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .teacher {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.16);
+      color: #dbeafe;
+      font-size: 0.94rem;
+      line-height: 1.55;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 1050px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .network {
+        min-height: 540px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100% - 16px, 1000px);
+      }
+
+      .hero, .card { border-radius: 20px; }
+      .network-grid { grid-template-columns: 1fr; min-height: auto; gap: 14px; }
+      .network { min-height: auto; }
+      .layer { gap: 10px; padding-top: 34px; }
+      .layer-title { top: 0; }
+      .node { width: min(100%, 280px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>Yapay zeka karar verirken aslında ne yapar?</h1>
+    </section>
+
+    <section class="layout">
+      <aside class="card">
+        <div class="card-header">
+          <h2>1. Girdileri değiştir</h2>
+          <p>Sinir ağına üç basit bilgi ver. Her sürgü, ağın gördüğü bir özelliği temsil eder.</p>
+        </div>
+        <div class="panel-body controls">
+          <div class="slider">
+            <div class="slider-top"><strong>Renkli olma</strong><span id="redValue">5</span>/10</div>
+            <input id="red" type="range" min="0" max="10" value="5" />
+          </div>
+          <div class="slider">
+            <div class="slider-top"><strong>Büyük olma</strong><span id="sizeValue">5</span>/10</div>
+            <input id="size" type="range" min="0" max="10" value="5" />
+          </div>
+          <div class="slider">
+            <div class="slider-top"><strong>Tatlı olma</strong><span id="sweetValue">5</span>/10</div>
+            <input id="sweet" type="range" min="0" max="10" value="5" />
+          </div>
+
+          <div class="teacher" id="teacherTip">
+            Bir sinir ağı tek başına sihir yapmaz. Küçük kararlar verir, bunları birleştirir ve son tahmini oluşturur.
+          </div>
+        </div>
+      </aside>
+
+      <section class="card network">
+        <div class="network-grid" id="networkGrid">
+          <div class="connections" id="connections"></div>
+
+          <div class="layer">
+            <div class="layer-title">Girdi katmanı</div>
+            <div class="node blue" id="node-red" data-label="1. özellik">
+              <div>
+                <span class="emoji">🔴</span>
+                <div class="value" id="redNodeValue">5</div>
+                <div class="sub">Renkli olma</div>
+              </div>
+            </div>
+            <div class="node blue" id="node-size" data-label="2. özellik">
+              <div>
+                <span class="emoji">📏</span>
+                <div class="value" id="sizeNodeValue">5</div>
+                <div class="sub">Büyük olma</div>
+              </div>
+            </div>
+            <div class="node blue" id="node-sweet" data-label="3. özellik">
+              <div>
+                <span class="emoji">🍯</span>
+                <div class="value" id="sweetNodeValue">5</div>
+                <div class="sub">Tatlı olma</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="layer">
+            <div class="layer-title">Gizli katman</div>
+            <div class="node warn" id="node-fruit" data-label="Karar 1">
+              <div>
+                <span class="emoji">🍎</span>
+                <div class="value" id="fruitScore">0.0</div>
+                <div class="sub">Meyve gibi mi?</div>
+              </div>
+            </div>
+            <div class="node good" id="node-summer" data-label="Karar 2">
+              <div>
+                <span class="emoji">🌞</span>
+                <div class="value" id="summerScore">0.0</div>
+                <div class="sub">Yaz meyvesi mi?</div>
+              </div>
+            </div>
+            <div class="node bad" id="node-confuse" data-label="Karar 3">
+              <div>
+                <span class="emoji">🤔</span>
+                <div class="value" id="confuseScore">0.0</div>
+                <div class="sub">Kafası karışık mı?</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="layer">
+            <div class="layer-title">Çıkış katmanı</div>
+            <div class="node" id="node-output" data-label="Sonuç">
+              <div>
+                <span class="emoji" id="finalEmoji">❓</span>
+                <div class="value" id="finalLabel">Bekleniyor</div>
+                <div class="sub">Ağın son kararı</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="card-header">
+          <h2>2. Ağın cevabı</h2>
+          <p>Burada ağın hangi sınıfa daha yakın olduğunu görürsün. Barlar, güvene benzer bir puanı anlatır.</p>
+        </div>
+        <div class="panel-body">
+          <div class="result-box">
+            <div class="result-emoji" id="resultEmoji">❓</div>
+            <div class="result-name" id="resultName">Henüz karar yok</div>
+            <div class="result-desc" id="resultDesc">Sürgüleri oynatınca ağın düşünmesi başlayacak.</div>
+          </div>
+
+          <div class="score-list">
+            <div class="score-row">
+              <div class="score-top"><span>Elma benzeri</span><span id="applePct">0%</span></div>
+              <div class="bar"><div class="fill apple" id="appleBar"></div></div>
+            </div>
+            <div class="score-row">
+              <div class="score-top"><span>Muz benzeri</span><span id="bananaPct">0%</span></div>
+              <div class="bar"><div class="fill banana" id="bananaBar"></div></div>
+            </div>
+            <div class="score-row">
+              <div class="score-top"><span>Karpuz benzeri</span><span id="watermelonPct">0%</span></div>
+              <div class="bar"><div class="fill watermelon" id="watermelonBar"></div></div>
+            </div>
+            <div class="score-row">
+              <div class="score-top"><span>Armut benzeri</span><span id="pearPct">0%</span></div>
+              <div class="bar"><div class="fill pear" id="pearBar"></div></div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <h2 style="margin:0 0 8px; font-size:1.05rem;">Ağın nasıl düşündüğü</h2>
+            <ul class="explain" id="explainList"></ul>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+  </main>
+
+  <script>
+    const inputs = {
+      red: document.getElementById('red'),
+      size: document.getElementById('size'),
+      sweet: document.getElementById('sweet')
+    };
+
+    const values = {
+      red: document.getElementById('redValue'),
+      size: document.getElementById('sizeValue'),
+      sweet: document.getElementById('sweetValue'),
+      redNode: document.getElementById('redNodeValue'),
+      sizeNode: document.getElementById('sizeNodeValue'),
+      sweetNode: document.getElementById('sweetNodeValue')
+    };
+
+    const nodes = {
+      red: document.getElementById('node-red'),
+      size: document.getElementById('node-size'),
+      sweet: document.getElementById('node-sweet'),
+      fruit: document.getElementById('node-fruit'),
+      summer: document.getElementById('node-summer'),
+      confuse: document.getElementById('node-confuse'),
+      output: document.getElementById('node-output')
+    };
+
+    const connectionLayer = document.getElementById('connections');
+    const teacherTip = document.getElementById('teacherTip');
+
+    const result = {
+      emoji: document.getElementById('resultEmoji'),
+      name: document.getElementById('resultName'),
+      desc: document.getElementById('resultDesc'),
+      finalEmoji: document.getElementById('finalEmoji'),
+      finalLabel: document.getElementById('finalLabel')
+    };
+
+    const scores = {
+      apple: document.getElementById('applePct'),
+      banana: document.getElementById('bananaPct'),
+      watermelon: document.getElementById('watermelonPct'),
+      pear: document.getElementById('pearPct'),
+      appleBar: document.getElementById('appleBar'),
+      bananaBar: document.getElementById('bananaBar'),
+      watermelonBar: document.getElementById('watermelonBar'),
+      pearBar: document.getElementById('pearBar'),
+      fruit: document.getElementById('fruitScore'),
+      summer: document.getElementById('summerScore'),
+      confuse: document.getElementById('confuseScore')
+    };
+
+    const explainList = document.getElementById('explainList');
+
+    const weights = {
+      fruit: { red: 0.55, size: 0.15, sweet: 0.35, bias: -2.2 },
+      summer: { red: 0.18, size: 0.55, sweet: 0.32, bias: -2.0 },
+      confuse: { red: -0.18, size: 0.05, sweet: -0.22, bias: 0.9 },
+      apple: { red: 0.62, size: 0.08, sweet: 0.38, fruit: 0.4, summer: 0.18, confuse: -0.4, bias: -0.4 },
+      banana: { red: 0.12, size: 0.44, sweet: 0.52, fruit: 0.2, summer: 0.38, confuse: -0.2, bias: -0.2 },
+      watermelon: { red: 0.24, size: 0.68, sweet: 0.18, fruit: 0.35, summer: 0.42, confuse: -0.15, bias: -0.35 }
+    };
+
+    function sigmoid(x) {
+      return 1 / (1 + Math.exp(-x));
+    }
+
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function formatScore(n) {
+      return n.toFixed(1);
+    }
+
+    function drawConnections() {
+      connectionLayer.innerHTML = '';
+      const pairs = [
+        [nodes.red, nodes.fruit, 'good'],
+        [nodes.size, nodes.fruit, 'neutral'],
+        [nodes.sweet, nodes.fruit, 'good'],
+        [nodes.red, nodes.summer, 'good'],
+        [nodes.size, nodes.summer, 'good'],
+        [nodes.sweet, nodes.summer, 'good'],
+        [nodes.red, nodes.confuse, 'bad'],
+        [nodes.size, nodes.confuse, 'neutral'],
+        [nodes.sweet, nodes.confuse, 'bad'],
+        [nodes.fruit, nodes.output, 'neutral'],
+        [nodes.summer, nodes.output, 'neutral'],
+        [nodes.confuse, nodes.output, 'neutral']
+      ];
+
+      const container = document.getElementById('networkGrid');
+      const containerRect = container.getBoundingClientRect();
+
+      pairs.forEach(([from, to, tone]) => {
+        const a = from.getBoundingClientRect();
+        const b = to.getBoundingClientRect();
+        const x1 = a.right - containerRect.left;
+        const y1 = a.top + a.height / 2 - containerRect.top;
+        const x2 = b.left - containerRect.left;
+        const y2 = b.top + b.height / 2 - containerRect.top;
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+        const line = document.createElement('div');
+        line.className = `connection ${tone}`;
+        line.style.left = `${x1}px`;
+        line.style.top = `${y1}px`;
+        line.style.width = `${length}px`;
+        line.style.transform = `rotate(${angle}deg)`;
+        connectionLayer.appendChild(line);
+      });
+    }
+
+    function activateNode(node, strength) {
+      node.classList.toggle('active', strength > 0.4);
+    }
+
+    function update() {
+      const red = Number(inputs.red.value);
+      const size = Number(inputs.size.value);
+      const sweet = Number(inputs.sweet.value);
+
+      values.red.textContent = red;
+      values.size.textContent = size;
+      values.sweet.textContent = sweet;
+      values.redNode.textContent = red;
+      values.sizeNode.textContent = size;
+      values.sweetNode.textContent = sweet;
+
+      const fruitRaw = red * weights.fruit.red + size * weights.fruit.size + sweet * weights.fruit.sweet + weights.fruit.bias;
+      const summerRaw = red * weights.summer.red + size * weights.summer.size + sweet * weights.summer.sweet + weights.summer.bias;
+      const confuseRaw = red * weights.confuse.red + size * weights.confuse.size + sweet * weights.confuse.sweet + weights.confuse.bias;
+
+      const fruit = sigmoid(fruitRaw);
+      const summer = sigmoid(summerRaw);
+      const confuse = sigmoid(confuseRaw);
+
+      scores.fruit.textContent = formatScore(fruitRaw);
+      scores.summer.textContent = formatScore(summerRaw);
+      scores.confuse.textContent = formatScore(confuseRaw);
+
+      activateNode(nodes.fruit, fruit);
+      activateNode(nodes.summer, summer);
+      activateNode(nodes.confuse, confuse);
+
+      const appleRaw = fruit * weights.apple.fruit + summer * weights.apple.summer + confuse * weights.apple.confuse + red * weights.apple.red + size * weights.apple.size + sweet * weights.apple.sweet + weights.apple.bias;
+      const bananaRaw = fruit * weights.banana.fruit + summer * weights.banana.summer + confuse * weights.banana.confuse + red * weights.banana.red + size * weights.banana.size + sweet * weights.banana.sweet + weights.banana.bias;
+      const watermelonRaw = fruit * weights.watermelon.fruit + summer * weights.watermelon.summer + confuse * weights.watermelon.confuse + red * weights.watermelon.red + size * weights.watermelon.size + sweet * weights.watermelon.sweet + weights.watermelon.bias;
+      const pearRaw = red * 0.32 + size * 0.38 + sweet * 0.24 + 0.06;
+
+      const apple = Math.max(0, appleRaw);
+      const banana = Math.max(0, bananaRaw);
+      const watermelon = Math.max(0, watermelonRaw);
+      const pear = Math.max(0, pearRaw);
+
+      const total = apple + banana + watermelon + pear || 1;
+      const applePct = Math.round((apple / total) * 100);
+      const bananaPct = Math.round((banana / total) * 100);
+      const watermelonPct = Math.round((watermelon / total) * 100);
+      const pearPct = Math.round((pear / total) * 100);
+
+      scores.apple.textContent = `${applePct}%`;
+      scores.banana.textContent = `${bananaPct}%`;
+      scores.watermelon.textContent = `${watermelonPct}%`;
+      scores.pear.textContent = `${pearPct}%`;
+      scores.appleBar.style.width = `${applePct}%`;
+      scores.bananaBar.style.width = `${bananaPct}%`;
+      scores.watermelonBar.style.width = `${watermelonPct}%`;
+      scores.pearBar.style.width = `${pearPct}%`;
+
+      let label = 'Kafası karışık meyve';
+      let emoji = '🤔';
+      let desc = 'Ağın kararları birbirine yakın. Daha net bir sonuç için özellikleri değiştir.';
+      let teacher = 'Burada ağ net bir taraf seçemiyor. Öğrenciler için iyi bir örnek: bazı girdiler sonuçları karıştırabilir.';
+
+      const best = Math.max(applePct, bananaPct, watermelonPct, pearPct);
+      if (best === applePct) {
+        label = 'Elma gibi görünüyor';
+        emoji = '🍎';
+        desc = 'Kırmızılık ve tatlılık birlikte yükseldiği için ağ elma sınıfına daha çok yaklaştı.';
+        teacher = 'Ağ, özellikleri topladı ve en güçlü sonucu elma için verdi. Yani tek bir işaret değil, birkaç işaret birlikte etkili oldu.';
+      } else if (best === bananaPct) {
+        label = 'Muz gibi görünüyor';
+        emoji = '🍌';
+        desc = 'Büyük olma ve tatlılık değeri öne çıktığı için muz tahmini güçlendi.';
+        teacher = 'Gizli katmandaki küçük kararlar, muz sınıfını destekledi. Sinir ağı tek bir kuraldan değil, küçük ipuçlarından yararlanır.';
+      } else if (best === watermelonPct) {
+        label = 'Karpuz gibi görünüyor';
+        emoji = '🍉';
+        desc = 'Büyük olma puanı arttıkça karpuz sınıfı öne çıktı.';
+        teacher = 'Sinir ağında bazı nöronlar “büyük nesne” ipucunu yakaladı. Sonuçta çıkış katmanı bunu karpuz olarak birleştirdi.';
+      } else if (best === pearPct) {
+        label = 'Armut gibi görünüyor';
+        emoji = '🍐';
+        desc = 'Orta büyüklük ve dengeli tatlılık, armut sınıfını öne çıkardı.';
+        teacher = 'Dördüncü çıktı, ağın daha fazla sınıfı aynı anda karşılaştırabildiğini gösterir.';
+      }
+
+      if (confuse > 0.65) {
+        teacher = 'Bu örnekte bazı özellikler birbiriyle çelişiyor. Bir sinir ağı böyle durumlarda daha çok veri görerek daha iyi öğrenir.';
+      }
+
+      result.emoji.textContent = emoji;
+      result.name.textContent = label;
+      result.desc.textContent = desc;
+      result.finalEmoji.textContent = emoji;
+      result.finalLabel.textContent = label;
+      teacherTip.textContent = teacher;
+
+      explainList.innerHTML = [
+        `1. Girdi katmanı sayı toplar: kırmızılık ${red}, büyüklük ${size}, tatlılık ${sweet}.`,
+        `2. Gizli katmandaki nöronlar bu sayıları ağırlıklarla çarpar ve kendi küçük kararını verir.`,
+        `3. Çıkış katmanı dört sınıfı karşılaştırır ve en güçlü sınıfı seçer: ${label}.`
+      ].map((item) => `<li>${item}</li>`).join('');
+
+      activateNode(nodes.output, best / 100);
+      drawConnections();
+    }
+
+    window.addEventListener('resize', drawConnections);
+    Object.values(inputs).forEach((input) => input.addEventListener('input', update));
+
+    update();
+    setTimeout(drawConnections, 60);
+  </script>
+</body>
+</html>

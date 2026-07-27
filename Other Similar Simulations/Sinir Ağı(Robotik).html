@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Otonom Robot Arabayı Eğit!</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap');
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { color: #38bdf8; text-transform: uppercase; margin-bottom: 5px; text-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        .description { color: #94a3b8; text-align: center; max-width: 800px; margin-bottom: 30px; font-size: 15px; }
+
+        .container {
+            display: flex;
+            gap: 40px;
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            border: 1px solid #334155;
+        }
+
+        /* YOL VE ARABA KISMI */
+        .road-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .road {
+            display: flex;
+            gap: 10px;
+            background: #334155;
+            padding: 10px;
+            border-radius: 10px;
+            border: 2px dashed #64748b;
+        }
+
+        .lane {
+            width: 80px;
+            height: 120px;
+            background: #475569;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+            user-select: none;
+        }
+        .lane:hover { background: #64748b; }
+
+        .car-display {
+            font-size: 60px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* SİNİR AĞI KISMI */
+        .network-section {
+            position: relative;
+            width: 500px;
+            height: 350px;
+            background: #0f172a;
+            border-radius: 15px;
+            border: 2px solid #38bdf8;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        svg { width: 100%; height: 100%; position: absolute; }
+        
+        .weight-btn { cursor: pointer; user-select: none; transition: 0.1s; }
+        .weight-btn:hover { filter: brightness(1.3); }
+
+        .dashboard {
+            margin-top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 15px 20px;
+            border-radius: 15px;
+            box-sizing: border-box;
+            border: 1px solid #334155;
+        }
+
+        .status-box { font-size: 20px; font-weight: bold; color: #cbd5e1; }
+        
+        button.action-btn {
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 800;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+        }
+        button.action-btn:hover { background: #7dd3fc; transform: scale(1.05); }
+
+    </style>
+</head>
+<body>
+
+    <h1>🤖 Otonom Araç Yapay Zeka Testi</h1>
+    <p class="description">
+        Robot arabamız engellere çarpmadan gitmek istiyor! Yoldaki şeritlere tıklayarak engel (🚧) koy. 
+        Sonra sağdaki beyin bağlantılarına tıklayarak robota ne yapması gerektiğini öğret.
+        Yeşil = "Bunu Yap!", Kırmızı = "Bunu Sakın Yapma!", Gri = "Umurumda Değil".
+    </p>
+
+    <div class="container">
+        
+        <div class="road-section">
+            <h3 style="margin:0; color:#94a3b8;">Test Yolu</h3>
+            <div class="road">
+                <div class="lane" id="lane-0" onclick="toggleObstacle(0)"></div>
+                <div class="lane" id="lane-1" onclick="toggleObstacle(1)">🚧</div>
+                <div class="lane" id="lane-2" onclick="toggleObstacle(2)"></div>
+            </div>
+            <div class="car-display" id="car">🚘</div>
+        </div>
+
+        <div class="network-section">
+            <svg id="brain-svg"></svg>
+        </div>
+
+    </div>
+
+    <div class="dashboard" style="max-width: 900px; margin-top: 20px;">
+        <div class="status-box" id="decision-text">Karar Bekleniyor...</div>
+        <button class="action-btn" onclick="runAI()">Motorları Çalıştır</button>
+    </div>
+
+    <script>
+        // 0: Sol, 1: Ön, 2: Sağ
+        let sensors = [0, 1, 0]; // 1 = Engel Var, 0 = Yol Boş
+
+        // Ağırlıklar (Inputs to Outputs)
+        // Satırlar: Sensörler (Sol, Ön, Sağ)
+        // Sütunlar: Aksiyonlar (Sola Kaç, Düz Git, Sağa Kaç)
+        // Değerler: 1 (Yeşil/Teşvik), -1 (Kırmızı/Kaçın), 0 (Gri/Etkisiz)
+        let weights = [
+            [ 0,  0,  1], // Sol Sensör -> (Sola Kaç, Düz Git, Sağa Kaç)
+            [ 1, -1,  1], // Ön Sensör  -> (Sola Kaç, Düz Git, Sağa Kaç)
+            [ 1,  0,  0]  // Sağ Sensör -> (Sola Kaç, Düz Git, Sağa Kaç)
+        ];
+
+        const nodes = {
+            inputs: [
+                {x: 80, y: 70, label: "Sol Sensör"},
+                {x: 80, y: 175, label: "Ön Sensör"},
+                {x: 80, y: 280, label: "Sağ Sensör"}
+            ],
+            outputs: [
+                {x: 420, y: 70, label: "⬅️ Sola Dön"},
+                {x: 420, y: 175, label: "⬆️ Düz Git"},
+                {x: 420, y: 280, label: "➡️ Sağa Dön"}
+            ]
+        };
+
+        function toggleObstacle(index) {
+            sensors[index] = sensors[index] === 1 ? 0 : 1;
+            document.getElementById(`lane-${index}`).innerText = sensors[index] === 1 ? "🚧" : "";
+            resetCar();
+            drawNetwork();
+        }
+
+        function cycleWeight(sensorIndex, actionIndex) {
+            let val = weights[sensorIndex][actionIndex];
+            if (val === 0) val = 1;
+            else if (val === 1) val = -1;
+            else val = 0;
+            weights[sensorIndex][actionIndex] = val;
+            resetCar();
+            drawNetwork();
+        }
+
+        function resetCar() {
+            document.getElementById('car').style.transform = "translateX(0px) translateY(0px) rotate(0deg)";
+            document.getElementById('decision-text').innerText = "Karar Bekleniyor...";
+            document.getElementById('decision-text').style.color = "#cbd5e1";
+        }
+
+        function getWeightStyle(val) {
+            if (val === 1) return { color: "#22c55e", text: "+", width: 4 }; // Yeşil
+            if (val === -1) return { color: "#ef4444", text: "-", width: 4 }; // Kırmızı
+            return { color: "#475569", text: "0", width: 2 }; // Gri
+        }
+
+        function drawNetwork() {
+            const svg = document.getElementById('brain-svg');
+            svg.innerHTML = '';
+
+            // 1. Çizgiler ve Ağırlık Butonları
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    let wStyle = getWeightStyle(weights[i][j]);
+                    let start = nodes.inputs[i];
+                    let end = nodes.outputs[j];
+
+                    // Çizgi
+                    let line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    line.setAttribute("x1", start.x); line.setAttribute("y1", start.y);
+                    line.setAttribute("x2", end.x); line.setAttribute("y2", end.y);
+                    line.setAttribute("stroke", wStyle.color);
+                    line.setAttribute("stroke-width", wStyle.width);
+                    line.setAttribute("opacity", weights[i][j] === 0 ? "0.3" : "0.8");
+                    svg.appendChild(line);
+
+                    // Etkileşimli Ağırlık Kutusu
+                    let midX = start.x + (end.x - start.x) * 0.4 + (j * 30); // Kutuları çarpışmaması için kaydır
+                    let midY = start.y + (end.y - start.y) * 0.4;
+
+                    let bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    bg.setAttribute("x", midX - 12); bg.setAttribute("y", midY - 12);
+                    bg.setAttribute("width", 24); bg.setAttribute("height", 24);
+                    bg.setAttribute("fill", "#1e293b");
+                    bg.setAttribute("stroke", wStyle.color);
+                    bg.setAttribute("stroke-width", 2);
+                    bg.setAttribute("rx", 5);
+                    bg.setAttribute("class", "weight-btn");
+                    bg.onclick = () => cycleWeight(i, j);
+                    svg.appendChild(bg);
+
+                    let text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute("x", midX); text.setAttribute("y", midY + 5);
+                    text.setAttribute("fill", wStyle.color);
+                    text.setAttribute("font-size", "14px");
+                    text.setAttribute("font-weight", "bold");
+                    text.setAttribute("text-anchor", "middle");
+                    text.style.pointerEvents = "none";
+                    text.textContent = wStyle.text;
+                    svg.appendChild(text);
+                }
+            }
+
+            // 2. Düğümler (Nöronlar)
+            nodes.inputs.forEach((node, i) => {
+                let isActive = sensors[i] === 1;
+                drawNode(svg, node.x, node.y, node.label, isActive ? "#f59e0b" : "#334155", isActive ? "ENGEL!" : "Boş");
+            });
+
+            nodes.outputs.forEach((node, i) => {
+                drawNode(svg, node.x, node.y, node.label, "#38bdf8", "Motor");
+            });
+        }
+
+        function drawNode(svg, x, y, label, color, subtext) {
+            let circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", x); circle.setAttribute("cy", y);
+            circle.setAttribute("r", 30);
+            circle.setAttribute("fill", "#0f172a");
+            circle.setAttribute("stroke", color);
+            circle.setAttribute("stroke-width", 4);
+            svg.appendChild(circle);
+
+            let textSub = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textSub.setAttribute("x", x); textSub.setAttribute("y", y + 5);
+            textSub.setAttribute("fill", "#f8fafc");
+            textSub.setAttribute("font-size", "12px");
+            textSub.setAttribute("font-weight", "bold");
+            textSub.setAttribute("text-anchor", "middle");
+            textSub.textContent = subtext;
+            svg.appendChild(textSub);
+
+            let textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textLabel.setAttribute("x", x); textLabel.setAttribute("y", y - 40);
+            textLabel.setAttribute("fill", "#cbd5e1");
+            textLabel.setAttribute("font-size", "14px");
+            textLabel.setAttribute("text-anchor", "middle");
+            textLabel.textContent = label;
+            svg.appendChild(textLabel);
+        }
+
+        function runAI() {
+            // Skorları Hesapla
+            let scores = [0, 0, 0]; // Sola Kaç, Düz Git, Sağa Kaç
+            
+            for (let j = 0; j < 3; j++) {
+                for (let i = 0; i < 3; i++) {
+                    scores[j] += sensors[i] * weights[i][j];
+                }
+            }
+
+            // En yüksek skoru bul
+            let maxScore = Math.max(...scores);
+            let actionIndex = scores.indexOf(maxScore);
+            
+            // Eğer her şey 0 ise (engel yoksa) varsayılan olarak düz git
+            if (sensors[0] === 0 && sensors[1] === 0 && sensors[2] === 0) {
+                actionIndex = 1;
+                maxScore = 1;
+            }
+
+            const car = document.getElementById('car');
+            const statusBox = document.getElementById('decision-text');
+
+            // Çarpışma kontrolü (Eğer gittiği yönde engel varsa)
+            if (sensors[actionIndex] === 1 || maxScore <= 0) {
+                car.style.transform = "translateY(-30px)"; // Azıcık ileri gidip durur
+                setTimeout(() => { car.innerText = "💥"; }, 150);
+                statusBox.innerHTML = "GÜÜM! Çarptık! 💥 <span style='font-size:14px; color:#ef4444;'>(Yanlış bağlantı)</span>";
+                statusBox.style.color = "#ef4444";
+                
+                // 1 saniye sonra arabayı geri getir
+                setTimeout(() => { car.innerText = "🚘"; resetCar(); }, 1500);
+                return;
+            }
+
+            // Başarılı Hareketler
+            if (actionIndex === 0) {
+                car.style.transform = "translateX(-90px) translateY(-50px) rotate(-20deg)";
+                statusBox.innerHTML = "Sola Kaçış Başarılı! ⬅️ <span style='font-size:14px; color:#22c55e;'>(Robot mantığı çözdü)</span>";
+            } else if (actionIndex === 1) {
+                car.style.transform = "translateY(-100px)";
+                statusBox.innerHTML = "Düz İlerliyor! ⬆️ <span style='font-size:14px; color:#22c55e;'>(Robot mantığı çözdü)</span>";
+            } else if (actionIndex === 2) {
+                car.style.transform = "translateX(90px) translateY(-50px) rotate(20deg)";
+                statusBox.innerHTML = "Sağa Kaçış Başarılı! ➡️ <span style='font-size:14px; color:#22c55e;'>(Robot mantığı çözdü)</span>";
+            }
+            
+            statusBox.style.color = "#22c55e";
+        }
+
+        // Başlangıç çizimi
+        window.onload = drawNetwork;
+
+    </script>
+</body>
+</html>

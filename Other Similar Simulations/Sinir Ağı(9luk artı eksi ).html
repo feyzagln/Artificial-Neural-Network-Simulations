@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>3x3 Piksel Okuyucu: Gelişmiş Yapay Zeka</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #080c16;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { font-family: 'Orbitron', sans-serif; color: #00f0ff; text-shadow: 0 0 15px rgba(0,240,255,0.6); margin-bottom: 5px; }
+        p.subtitle { color: #94a3b8; text-align: center; max-width: 900px; margin-bottom: 30px; font-size: 15px; line-height: 1.5; }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            background: #111827;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            border: 1px solid #1e293b;
+            align-items: center;
+            max-width: 1300px;
+        }
+
+        /* 1. Piksel Çizim Alanı */
+        .pixel-board {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px dashed #334155;
+            min-width: 250px;
+        }
+
+        .grid-3x3 {
+            display: grid;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(3, 70px);
+            gap: 6px;
+            margin-top: 15px;
+        }
+
+        .pixel {
+            width: 100%;
+            height: 100%;
+            background-color: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #475569;
+        }
+        
+        .pixel.active {
+            background-color: #00f0ff;
+            border-color: #fff;
+            box-shadow: 0 0 12px #00f0ff;
+            color: #000;
+        }
+
+        /* 2. Sinir Ağı Alanı */
+        .network-area {
+            position: relative;
+            width: 700px;
+            height: 550px;
+            background: #080c16;
+            border-radius: 15px;
+            border: 2px solid #00f0ff;
+            overflow: hidden;
+        }
+
+        svg { width: 100%; height: 100%; position: absolute; }
+        
+        .weight-btn { cursor: pointer; transition: 0.1s; }
+        .weight-btn:hover { filter: brightness(1.5); }
+
+        .node-text { font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: bold; fill: #fff; pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+        .node-label { font-size: 11px; fill: #94a3b8; text-anchor: middle; pointer-events: none; font-weight: bold; }
+
+        /* 3. Çıkış Ekranı */
+        .result-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 220px;
+            height: 220px;
+            background: #1e293b;
+            border-radius: 50%;
+            border: 5px solid #334155;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transition: all 0.3s;
+        }
+
+        .result-text { font-family: 'Orbitron', sans-serif; font-size: 24px; font-weight: bold; color: #fff; margin-top: 10px; text-align: center;}
+        .result-icon { font-size: 60px; line-height: 1; }
+
+    </style>
+</head>
+<body>
+
+    <h1>🧠 3x3 Yapay Zeka Görsel Analiz</h1>
+    <p class="subtitle">
+        Piksellere tıklayarak <b>Artı (+)</b> veya <b>Çarpı (X)</b> şekli çizmeyi dene!<br>
+        Ağdaki çizgilere yerleştirilmiş kontrol panellerine tıklayarak robota piksellerin önemini <span style="color:#10b981;">(+1)</span>, <span style="color:#ef4444;">(-1)</span> veya <span style="color:#64748b;">(0)</span> olarak baştan öğretebilirsin.
+    </p>
+
+    <div class="container">
+        
+        <div class="pixel-board">
+            <h2 style="margin:0; font-size: 16px; color:#00f0ff;">1. Kamera (Sensörler)</h2>
+            <div class="grid-3x3">
+                <div class="pixel" id="p0" onclick="togglePixel(0)">P1</div>
+                <div class="pixel" id="p1" onclick="togglePixel(1)">P2</div>
+                <div class="pixel" id="p2" onclick="togglePixel(2)">P3</div>
+                <div class="pixel" id="p3" onclick="togglePixel(3)">P4</div>
+                <div class="pixel" id="p4" onclick="togglePixel(4)">P5</div>
+                <div class="pixel" id="p5" onclick="togglePixel(5)">P6</div>
+                <div class="pixel" id="p6" onclick="togglePixel(6)">P7</div>
+                <div class="pixel" id="p7" onclick="togglePixel(7)">P8</div>
+                <div class="pixel" id="p8" onclick="togglePixel(8)">P9</div>
+            </div>
+            <p style="font-size:12px; color:#64748b; margin-top:15px; text-align:center;">Pikselleri aç/kapat</p>
+        </div>
+
+        <div class="network-area">
+            <svg id="network-svg"></svg>
+        </div>
+
+        <div>
+            <h2 style="text-align:center; font-size: 16px; color:#00f0ff; margin-top:0;">3. Beynin Kararı</h2>
+            <div class="result-panel" id="final-result">
+                <div class="result-icon" id="res-icon">❓</div>
+                <div class="result-text" id="res-text">Ne Olduğu Belirsiz</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 9 Piksel (3x3 Grid) - Başlangıçta hepsi kapalı (0)
+        let pixels = [0, 0, 0, 0, 0, 0, 0, 0, 0]; 
+
+        // Başlangıç Ağırlıkları
+        let weights = {};
+        
+        // Doğru Kurallar:
+        // Artı (+) Şekli Pikselleri: P2, P4, P5, P6, P8 (İndeks: 1, 3, 4, 5, 7)
+        // Çarpı (X) Şekli Pikselleri: P1, P3, P5, P7, P9 (İndeks: 0, 2, 4, 6, 8)
+        const plusTargets = [1, 3, 4, 5, 7];
+        const crossTargets = [0, 2, 4, 6, 8];
+
+        for(let i=0; i<9; i++) {
+            weights[`${i}_0`] = plusTargets.includes(i) ? 1 : -1; // 0. Dedektif: Artı (+)
+            weights[`${i}_1`] = crossTargets.includes(i) ? 1 : -1; // 1. Dedektif: Çarpı (X)
+        }
+
+        const nodes = {
+            // 9 Giriş Nöronunun Dikey Dizilimi
+            inputs: Array.from({length: 9}, (_, i) => ({
+                id: i, x: 60, y: 40 + (i * 55), label: `P${i+1}`
+            })),
+            hidden: [
+                { id: 0, x: 480, y: 150, label: "ARTI (+) DEDEKTİFİ", color: "#10b981" }, // Yeşil
+                { id: 1, x: 480, y: 400, label: "ÇARPI (X) DEDEKTİFİ", color: "#ef4444" }  // Kırmızı
+            ],
+            outputs: [
+                { id: 0, x: 650, y: 275, label: "ANA BEYİN" }
+            ]
+        };
+
+        function togglePixel(index) {
+            pixels[index] = pixels[index] === 1 ? 0 : 1;
+            const el = document.getElementById(`p${index}`);
+            if(pixels[index] === 1) {
+                el.classList.add('active');
+                el.innerText = "1";
+            } else {
+                el.classList.remove('active');
+                el.innerText = `P${index+1}`;
+            }
+            updateNetwork();
+        }
+
+        function cycleWeight(pIndex, hIndex) {
+            const key = `${pIndex}_${hIndex}`;
+            if (weights[key] === 1) weights[key] = -1;
+            else if (weights[key] === -1) weights[key] = 0;
+            else weights[key] = 1;
+            updateNetwork();
+        }
+
+        function getStyle(weight) {
+            if (weight === 1) return { color: "#10b981", width: 3, symbol: "+1" };
+            if (weight === -1) return { color: "#ef4444", width: 3, symbol: "-1" };
+            return { color: "#334155", width: 1.5, symbol: "0" };
+        }
+
+        function drawLineAndButton(svg, start, end, pIndex, hIndex) {
+            const wStyle = getStyle(weights[`${pIndex}_${hIndex}`]);
+            
+            // Çizgi
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", start.x); line.setAttribute("y1", start.y);
+            line.setAttribute("x2", end.x); line.setAttribute("y2", end.y);
+            line.setAttribute("stroke", wStyle.color);
+            line.setAttribute("stroke-width", wStyle.width);
+            line.setAttribute("opacity", weights[`${pIndex}_${hIndex}`] === 0 ? "0.3" : "0.7");
+            svg.appendChild(line);
+
+            // Ağırlık Butonlarını Düzenli Sütunlara Hizalama Matematiği
+            // 0. Dedektif için X=200, 1. Dedektif için X=320 hizasında tut.
+            const targetX = hIndex === 0 ? 200 : 320;
+            const ratio = (targetX - start.x) / (end.x - start.x);
+            const targetY = start.y + (end.y - start.y) * ratio;
+
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            group.setAttribute("class", "weight-btn");
+            group.onclick = () => cycleWeight(pIndex, hIndex);
+
+            // Buton Arkaplanı
+            const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            rect.setAttribute("x", targetX - 14); rect.setAttribute("y", targetY - 10);
+            rect.setAttribute("width", 28); rect.setAttribute("height", 20);
+            rect.setAttribute("rx", 4);
+            rect.setAttribute("fill", "#080c16");
+            rect.setAttribute("stroke", wStyle.color);
+            rect.setAttribute("stroke-width", 2);
+            group.appendChild(rect);
+
+            // Buton Yazısı
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", targetX); text.setAttribute("y", targetY + 3);
+            text.setAttribute("fill", wStyle.color);
+            text.setAttribute("font-size", "10px");
+            text.setAttribute("font-family", "Orbitron");
+            text.setAttribute("font-weight", "bold");
+            text.setAttribute("text-anchor", "middle");
+            text.textContent = wStyle.symbol;
+            group.appendChild(text);
+
+            svg.appendChild(group);
+        }
+
+        function drawNode(svg, x, y, radius, color, label, score) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", x); circle.setAttribute("cy", y);
+            circle.setAttribute("r", radius);
+            circle.setAttribute("fill", "#080c16");
+            circle.setAttribute("stroke", color);
+            circle.setAttribute("stroke-width", 4);
+            svg.appendChild(circle);
+
+            if (score !== undefined) {
+                const scoreText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                scoreText.setAttribute("x", x); scoreText.setAttribute("y", y + 4);
+                scoreText.setAttribute("class", "node-text");
+                scoreText.textContent = score;
+                svg.appendChild(scoreText);
+            }
+
+            const labelText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            labelText.setAttribute("x", x); labelText.setAttribute("y", y - radius - 12);
+            labelText.setAttribute("class", "node-label");
+            labelText.textContent = label;
+            svg.appendChild(labelText);
+        }
+
+        function updateNetwork() {
+            const svg = document.getElementById('network-svg');
+            svg.innerHTML = '';
+
+            // 1. Hesaplama (Skorlar)
+            let plusScore = 0;
+            let crossScore = 0;
+
+            for(let i=0; i<9; i++) {
+                plusScore += pixels[i] * weights[`${i}_0`];
+                crossScore += pixels[i] * weights[`${i}_1`];
+            }
+
+            // 2. Çizgiler ve Kontrol Panelleri
+            nodes.inputs.forEach((pNode, i) => {
+                drawLineAndButton(svg, pNode, nodes.hidden[0], i, 0);
+                drawLineAndButton(svg, pNode, nodes.hidden[1], i, 1);
+            });
+
+            // Gizli Nöronlardan Çıkışa Çizgiler
+            const outNode = nodes.outputs[0];
+            
+            const linePlus = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            linePlus.setAttribute("x1", nodes.hidden[0].x); linePlus.setAttribute("y1", nodes.hidden[0].y);
+            linePlus.setAttribute("x2", outNode.x); linePlus.setAttribute("y2", outNode.y);
+            linePlus.setAttribute("stroke", plusScore > 0 ? nodes.hidden[0].color : "#334155"); 
+            linePlus.setAttribute("stroke-width", plusScore > 0 ? 6 : 2);
+            svg.appendChild(linePlus);
+
+            const lineCross = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            lineCross.setAttribute("x1", nodes.hidden[1].x); lineCross.setAttribute("y1", nodes.hidden[1].y);
+            lineCross.setAttribute("x2", outNode.x); lineCross.setAttribute("y2", outNode.y);
+            lineCross.setAttribute("stroke", crossScore > 0 ? nodes.hidden[1].color : "#334155"); 
+            lineCross.setAttribute("stroke-width", crossScore > 0 ? 6 : 2);
+            svg.appendChild(lineCross);
+
+            // 3. Nöronları Çizme
+            nodes.inputs.forEach((node, i) => {
+                const isActive = pixels[i] === 1;
+                drawNode(svg, node.x, node.y, 14, isActive ? "#00f0ff" : "#334155", node.label, isActive ? "1" : "0");
+            });
+
+            drawNode(svg, nodes.hidden[0].x, nodes.hidden[0].y, 35, nodes.hidden[0].color, nodes.hidden[0].label, `Puan: ${plusScore}`);
+            drawNode(svg, nodes.hidden[1].x, nodes.hidden[1].y, 35, nodes.hidden[1].color, nodes.hidden[1].label, `Puan: ${crossScore}`);
+            drawNode(svg, outNode.x, outNode.y, 45, "#e2e8f0", outNode.label, "AI");
+
+            // 4. Karar Ekranı
+            const resPanel = document.getElementById('final-result');
+            const resIcon = document.getElementById('res-icon');
+            const resText = document.getElementById('res-text');
+
+            if (plusScore > crossScore && plusScore > 0) {
+                resPanel.style.borderColor = nodes.hidden[0].color;
+                resPanel.style.boxShadow = `0 0 35px ${nodes.hidden[0].color}`;
+                resIcon.innerText = "➕";
+                resText.innerText = "BU BİR ARTI";
+                resText.style.color = nodes.hidden[0].color;
+            } else if (crossScore > plusScore && crossScore > 0) {
+                resPanel.style.borderColor = nodes.hidden[1].color;
+                resPanel.style.boxShadow = `0 0 35px ${nodes.hidden[1].color}`;
+                resIcon.innerText = "✖️";
+                resText.innerText = "BU BİR ÇARPI";
+                resText.style.color = nodes.hidden[1].color;
+            } else {
+                resPanel.style.borderColor = "#334155";
+                resPanel.style.boxShadow = "0 0 20px rgba(0,0,0,0.5)";
+                resIcon.innerText = "❓";
+                resText.innerText = "ŞEKİL BELİRSİZ";
+                resText.style.color = "#94a3b8";
+            }
+        }
+
+        window.onload = updateNetwork;
+    </script>
+</body>
+</html>

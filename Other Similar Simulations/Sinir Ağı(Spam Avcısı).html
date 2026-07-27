@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yapay Zeka Eğitmeni - Sahte Mesaj Avcısı</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #1a1a2e;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        h1 { color: #00d2ff; text-align: center; font-size: 32px; margin-bottom: 5px; text-shadow: 0 0 10px rgba(0,210,255,0.5); }
+        .subtitle { color: #a0a0b5; margin-bottom: 20px; text-align: center; max-width: 700px; }
+
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .phone-screen {
+            background: #ffffff;
+            color: #333;
+            padding: 15px 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            text-align: center;
+            position: relative;
+            border: 4px solid #3a3a5a;
+        }
+
+        .message-bubble {
+            background: #e5e5ea;
+            padding: 15px;
+            border-radius: 15px;
+            display: inline-block;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .scenario-btns {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn {
+            background: #3a3a5a;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        .btn:hover { background: #52527a; transform: translateY(-2px); }
+        .btn.active { background: #00d2ff; color: #1a1a2e; }
+
+        .network-container {
+            position: relative;
+            background: #16213e;
+            border-radius: 20px;
+            height: 450px;
+            border: 2px solid #0f3460;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+        }
+
+        svg { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+
+        .node { cursor: pointer; transition: 0.3s; }
+        .node:hover { filter: brightness(1.2); }
+        .node-text { font-family: 'Fredoka'; font-weight: 600; font-size: 14px; fill: white; pointer-events: none; text-anchor: middle; }
+        
+        .weight-badge { cursor: pointer; user-select: none; transition: 0.2s; }
+
+        .line { transition: stroke 0.3s, stroke-width 0.3s; cursor: pointer; }
+        
+        /* Animasyon Sınıfı */
+        .data-flow {
+            stroke-dasharray: 10, 10;
+            animation: flowAnim 0.8s linear infinite;
+        }
+        @keyframes flowAnim {
+            from { stroke-dashoffset: 20; }
+            to { stroke-dashoffset: 0; }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0f3460;
+            padding: 15px 30px;
+            border-radius: 15px;
+            border: 2px solid #e94560;
+        }
+
+        .test-btn {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(233,69,96,0.4);
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .test-btn:hover { background: #ff5270; transform: scale(1.05); }
+
+        .result-box {
+            font-size: 24px;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 10px;
+            background: #1a1a2e;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🕵️‍♂️ AI Spam Avcısı Görevi</h1>
+    <p class="subtitle">
+        Görev: Robotun gelen mesajların <b>Güvenli</b> mi yoksa <b>Zararlı (Spam)</b> mı olduğunu bulması gerekiyor.<br>
+        Çizgilere tıklayarak yapay zekaya neyin önemli neyin önemsiz olduğunu öğret!
+    </p>
+
+    <div class="game-board">
+        
+        <div class="phone-screen">
+            <h3 style="margin:0; color:#888;">Gelen Kutusu</h3>
+            <div class="message-bubble" id="message-display">
+                "Tebrikler! Yeni bir iPhone 15 kazandın. Hemen linke tıkla!"
+            </div>
+            <div class="scenario-btns">
+                <button class="btn active" onclick="loadScenario(0)" id="btn-sc0">Senaryo 1</button>
+                <button class="btn" onclick="loadScenario(1)" id="btn-sc1">Senaryo 2</button>
+                <button class="btn" onclick="loadScenario(2)" id="btn-sc2">Senaryo 3</button>
+            </div>
+        </div>
+
+        <div class="network-container">
+            <svg id="svg-canvas"></svg>
+        </div>
+
+        <div class="controls">
+            <div>
+                <p style="margin:0; color:#a0a0b5; font-size:14px;">Robotun Kararı:</p>
+                <div class="result-box" id="result-text" style="color: #666;">❓ Bekleniyor...</div>
+            </div>
+            <button class="test-btn" onclick="testNetwork()">BEYNİ ÇALIŞTIR</button>
+        </div>
+
+    </div>
+
+    <script>
+        // Senaryolar (0: Güvenli, 1: Spam)
+        const scenarios = [
+            { text: "🎁 Tebrikler! 50.000 TL ödül kazandın. Almak için buraya tıkla!", inputs: [1, 1, 0], expected: "spam" },
+            { text: "👋 Selam kanka, yarınki fen ödevini bana atabilir misin?", inputs: [0, 0, 1], expected: "safe" },
+            { text: "⚠️ Hesabınız çalındı! Kurtarmak için şifrenizi şu linke girin.", inputs: [0, 1, 0], expected: "spam" }
+        ];
+
+        let currentScenario = 0;
+        
+        // Ağırlıklar: -1 (Güven Verici), 0 (Etkisiz), 1 (Şüpheli)
+        // Başlangıçta çocukların bulması için yanlış ayarlanmış olabilir.
+        let weights = [0, 0, 0]; 
+
+        const nodes = {
+            inputs: [
+                { x: 120, y: 80, label: "Hediye/Ödül Var mı?", color: "#f39c12", id: 0 },
+                { x: 120, y: 225, label: "İçinde Link Var mı?", color: "#e74c3c", id: 1 },
+                { x: 120, y: 370, label: "Tanıdık Biri mi?", color: "#2ecc71", id: 2 }
+            ],
+            output: { x: 650, y: 225, label: "KARAR MERKEZİ", color: "#3498db" }
+        };
+
+        function loadScenario(index) {
+            currentScenario = index;
+            document.getElementById('message-display').innerText = scenarios[index].text;
+            
+            // Buton renklerini güncelle
+            for(let i=0; i<3; i++) {
+                document.getElementById(`btn-sc${i}`).classList.remove('active');
+            }
+            document.getElementById(`btn-sc${index}`).classList.add('active');
+            
+            resetResult();
+            drawNetwork();
+        }
+
+        // Çizgiye (Sinaps'a) tıklayınca ağırlığı değiştir
+        function toggleWeight(index) {
+            // Döngü: 0 -> 1 -> -1 -> 0
+            if(weights[index] === 0) weights[index] = 1;
+            else if(weights[index] === 1) weights[index] = -1;
+            else weights[index] = 0;
+            
+            resetResult();
+            drawNetwork();
+        }
+
+        function resetResult() {
+            document.getElementById('result-text').innerText = "❓ Bekleniyor...";
+            document.getElementById('result-text').style.color = "#666";
+            
+            // Animasyonları durdur
+            const lines = document.querySelectorAll('.line');
+            lines.forEach(l => l.classList.remove('data-flow'));
+        }
+
+        function getWeightProps(weight) {
+            if(weight === 1) return { color: "#e94560", text: "+1 (ŞÜPHELİ)", width: 6 };
+            if(weight === -1) return { color: "#2ecc71", text: "-1 (GÜVENLİ)", width: 6 };
+            return { color: "#666", text: "0 (ÖNEMSİZ)", width: 2 };
+        }
+
+        function drawNetwork() {
+            const svg = document.getElementById('svg-canvas');
+            svg.innerHTML = ''; 
+
+            const inputVals = scenarios[currentScenario].inputs;
+
+            // 1. Çizgileri Çiz
+            nodes.inputs.forEach((node, i) => {
+                const wProps = getWeightProps(weights[i]);
+                
+                // Arka plan çizgisi (tıklama alanını genişletmek için)
+                const hitArea = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                hitArea.setAttribute("x1", node.x); hitArea.setAttribute("y1", node.y);
+                hitArea.setAttribute("x2", nodes.output.x); hitArea.setAttribute("y2", nodes.output.y);
+                hitArea.setAttribute("stroke", "transparent");
+                hitArea.setAttribute("stroke-width", "30");
+                hitArea.style.cursor = "pointer";
+                hitArea.onclick = () => toggleWeight(i);
+                svg.appendChild(hitArea);
+
+                // Gerçek çizgi
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", node.x); line.setAttribute("y1", node.y);
+                line.setAttribute("x2", nodes.output.x); line.setAttribute("y2", nodes.output.y);
+                line.setAttribute("stroke", wProps.color);
+                line.setAttribute("stroke-width", wProps.width);
+                line.setAttribute("class", "line");
+                line.id = `line-${i}`;
+                line.style.pointerEvents = "none";
+                svg.appendChild(line);
+
+                // Ağırlık Etiketi (Çizgi ortasında)
+                const midX = (node.x + nodes.output.x) / 2;
+                const midY = (node.y + nodes.output.y) / 2;
+                
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttribute("x", midX - 45); rect.setAttribute("y", midY - 15);
+                rect.setAttribute("width", "90"); rect.setAttribute("height", "30");
+                rect.setAttribute("rx", "15");
+                rect.setAttribute("fill", "#1a1a2e");
+                rect.setAttribute("stroke", wProps.color);
+                rect.setAttribute("stroke-width", "2");
+                rect.setAttribute("class", "weight-badge");
+                rect.onclick = () => toggleWeight(i);
+                svg.appendChild(rect);
+
+                const wText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                wText.setAttribute("x", midX); wText.setAttribute("y", midY + 4);
+                wText.setAttribute("fill", wProps.color);
+                wText.setAttribute("font-size", "12px");
+                wText.setAttribute("font-weight", "bold");
+                wText.setAttribute("text-anchor", "middle");
+                wText.style.pointerEvents = "none";
+                wText.textContent = wProps.text;
+                svg.appendChild(wText);
+            });
+
+            // 2. Düğümleri (Nöronları) Çiz
+            nodes.inputs.forEach((node, i) => {
+                const isActive = inputVals[i] === 1;
+                drawCircle(svg, node.x, node.y, 45, isActive ? node.color : "#333", isActive ? "#fff" : "#666", node.label);
+                
+                // İçine 1 veya 0 yaz
+                const valText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                valText.setAttribute("x", node.x); valText.setAttribute("y", node.y + 8);
+                valText.setAttribute("fill", "#fff");
+                valText.setAttribute("font-size", "24px");
+                valText.setAttribute("font-weight", "bold");
+                valText.setAttribute("text-anchor", "middle");
+                valText.textContent = isActive ? "1" : "0";
+                svg.appendChild(valText);
+            });
+
+            // Çıkış Nöronu
+            drawCircle(svg, nodes.output.x, nodes.output.y, 60, nodes.output.color, "#fff", nodes.output.label);
+            
+            // Çıkış İkonu (Beyin/Robot)
+            const icon = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            icon.setAttribute("x", nodes.output.x); icon.setAttribute("y", nodes.output.y + 15);
+            icon.setAttribute("fill", "#fff");
+            icon.setAttribute("font-size", "40px");
+            icon.setAttribute("text-anchor", "middle");
+            icon.textContent = "🤖";
+            svg.appendChild(icon);
+        }
+
+        function drawCircle(svg, x, y, r, fill, stroke, label) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", x); circle.setAttribute("cy", y);
+            circle.setAttribute("r", r);
+            circle.setAttribute("fill", fill);
+            circle.setAttribute("stroke", stroke);
+            circle.setAttribute("stroke-width", "4");
+            circle.setAttribute("class", "node");
+            svg.appendChild(circle);
+
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", x); text.setAttribute("y", y - r - 15);
+            text.setAttribute("class", "node-text");
+            text.textContent = label;
+            svg.appendChild(text);
+        }
+
+        function testNetwork() {
+            const inputVals = scenarios[currentScenario].inputs;
+            
+            // Sadece sinyal gönderilen (1 olan) veya ters ağırlığı olan çizgilerde animasyon başlat
+            for(let i=0; i<3; i++) {
+                if(inputVals[i] === 1 || weights[i] !== 0) {
+                    document.getElementById(`line-${i}`).classList.add('data-flow');
+                }
+            }
+
+            // Hesaplama: Score = (I1 * W1) + (I2 * W2) + (I3 * W3)
+            let totalScore = 0;
+            for(let i=0; i<3; i++) {
+                totalScore += inputVals[i] * weights[i];
+            }
+
+            // Karar Mekanizması (Aktivasyon)
+            setTimeout(() => {
+                const resBox = document.getElementById('result-text');
+                
+                // Karar Eşiği: Skor 1 veya daha büyükse SPAM
+                if(totalScore >= 1) {
+                    resBox.innerHTML = `🚨 ZARARLI MESAJ (Skor: ${totalScore})`;
+                    resBox.style.color = "#e94560";
+                    
+                    if(scenarios[currentScenario].expected === "spam") {
+                        resBox.innerHTML += " <br><span style='font-size:16px;color:#2ecc71'>✅ Harika! Doğru tespit ettin.</span>";
+                    } else {
+                        resBox.innerHTML += " <br><span style='font-size:16px;color:#f1c40f'>❌ Hata! Arkadaşından gelen mesaja spam dedin.</span>";
+                    }
+
+                } else {
+                    resBox.innerHTML = `🟢 GÜVENLİ (Skor: ${totalScore})`;
+                    resBox.style.color = "#2ecc71";
+                    
+                    if(scenarios[currentScenario].expected === "safe") {
+                        resBox.innerHTML += " <br><span style='font-size:16px;color:#2ecc71'>✅ Harika! Doğru tespit ettin.</span>";
+                    } else {
+                        resBox.innerHTML += " <br><span style='font-size:16px;color:#f1c40f'>❌ Hata! Bu bir tuzaktı, robottan kaçtı!</span>";
+                    }
+                }
+                
+                // Animasyonları bitir
+                const lines = document.querySelectorAll('.line');
+                lines.forEach(l => l.classList.remove('data-flow'));
+                
+            }, 800); // Animasyonun izlenmesi için 0.8 saniye bekle
+        }
+
+        // Başlat
+        window.onload = () => loadScenario(0);
+
+    </script>
+</body>
+</html>

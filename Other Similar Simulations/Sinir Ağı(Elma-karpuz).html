@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Detaylı Yapay Sinir Ağı Simülasyonu</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e2f; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #4ade80; margin-bottom: 5px; text-align: center; }
+        p.desc { color: #a1a1aa; text-align: center; max-width: 800px; margin-bottom: 30px; font-size: 15px; }
+        
+        .app-container { display: flex; gap: 20px; max-width: 1200px; width: 100%; justify-content: center; align-items: flex-start; }
+        
+        .panel { background: #27273a; padding: 20px; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); width: 300px; }
+        .panel h2 { color: #f4f4f5; font-size: 18px; margin-top: 0; border-bottom: 2px solid #3f3f46; padding-bottom: 10px; }
+        
+        .slider-group { margin-bottom: 20px; }
+        .slider-group label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; color: #e4e4e7; }
+        .slider-group input[type="range"] { width: 100%; accent-color: #4ade80; cursor: pointer; }
+        
+        .svg-container { background: #27273a; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); border: 1px solid #3f3f46; overflow: hidden; position: relative; }
+        
+        .weight-text { font-size: 12px; font-weight: bold; cursor: pointer; user-select: none; transition: fill 0.2s; }
+        .weight-text:hover { fill: #fff !important; font-size: 14px; }
+        .node-text { font-size: 12px; fill: #fff; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+        .node-label { font-size: 14px; fill: #a1a1aa; text-anchor: middle; font-weight: bold; }
+        
+        .math-box { margin-top: 15px; padding: 15px; background: #181825; border-radius: 8px; font-family: monospace; font-size: 13px; color: #a6accd; border: 1px solid #3f3f46; }
+        .math-box strong { color: #4ade80; }
+        
+        .result-display { text-align: center; margin-top: 20px; padding: 20px; border-radius: 8px; font-size: 24px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>🧠 Çok Katmanlı Algılayıcı (MLP) Simülasyonu</h1>
+    <p class="desc">
+        Bu simülasyon, "Kırmızılık", "Yuvarlaklık" ve "Tatlılık" verilerini kullanarak nesnenin <b>Elma</b> mı yoksa <b>Karpuz</b> mu olduğunu tahmin eder.<br>
+        Ağırlıkları (bağlantıların üzerindeki sayılar) değiştirmek için üzerlerine tıklayın! Çizgi kalınlıkları ağırlığın şiddetini gösterir.
+    </p>
+
+    <div class="app-container">
+        <div class="panel">
+            <h2>1. Sensör Verileri (Giriş)</h2>
+            <div class="slider-group">
+                <label>🔴 Kırmızılık: <span id="val-i1">0.8</span></label>
+                <input type="range" id="i1" min="0" max="1" step="0.1" value="0.8" oninput="updateNetwork()">
+            </div>
+            <div class="slider-group">
+                <label>⭕ Yuvarlaklık: <span id="val-i2">0.9</span></label>
+                <input type="range" id="i2" min="0" max="1" step="0.1" value="0.9" oninput="updateNetwork()">
+            </div>
+            <div class="slider-group">
+                <label>🍬 Tatlılık: <span id="val-i3">0.7</span></label>
+                <input type="range" id="i3" min="0" max="1" step="0.1" value="0.7" oninput="updateNetwork()">
+            </div>
+
+            <div class="math-box">
+                <b>Aktivasyon Fonksiyonu:</b><br>
+                Sigmoid = 1 / (1 + e^-x)<br><br>
+                Yapay sinir ağları, toplam değeri 0 ile 1 arasına sıkıştırmak için bu matematiği kullanır.
+            </div>
+        </div>
+
+        <div class="svg-container">
+            <svg id="networkSVG" width="600" height="450"></svg>
+        </div>
+
+        <div class="panel">
+            <h2>3. Sonuç (Çıkış)</h2>
+            <div class="math-box" id="calc-details">
+                </div>
+            
+            <div id="final-result" class="result-display">
+                Bekleniyor...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sinir Ağı Mimarisi: 3 Giriş, 2 Gizli Nöron, 1 Çıkış
+        let inputs = [0.8, 0.9, 0.7];
+        
+        // Başlangıç Ağırlıkları (Rastgele ancak eğitilmiş hissi veren değerler)
+        let weights_ih = [
+            [ 2.0, -1.0 ], // Giriş 1'in (Kırmızılık) Gizli 1 ve 2'ye ağırlıkları
+            [ 1.5,  2.5 ], // Giriş 2'nin (Yuvarlaklık) Gizli 1 ve 2'ye ağırlıkları
+            [-0.5,  3.0 ]  // Giriş 3'ün (Tatlılık) Gizli 1 ve 2'ye ağırlıkları
+        ];
+        let weights_ho = [ 2.5, -2.0 ]; // Gizli katmandan çıkışa ağırlıklar
+        
+        // Eşik değerleri (Bias)
+        let bias_h = [-1.0, -2.0];
+        let bias_o = [-0.5];
+
+        const coords = {
+            inputs:  [ {x: 100, y: 100, label: "Kırmızılık"}, {x: 100, y: 225, label: "Yuvarlaklık"}, {x: 100, y: 350, label: "Tatlılık"} ],
+            hidden:  [ {x: 350, y: 150, label: "Gizli Nöron 1"}, {x: 350, y: 300, label: "Gizli Nöron 2"} ],
+            output:  [ {x: 520, y: 225, label: "Tahmin (Çıkış)"} ]
+        };
+
+        // Sigmoid Aktivasyon Fonksiyonu
+        function sigmoid(x) {
+            return 1 / (1 + Math.exp(-x));
+        }
+
+        // Ağırlık değiştirme (Tıklama ile)
+        function changeWeight(layer, i, j) {
+            let current = layer === 'ih' ? weights_ih[i][j] : weights_ho[i];
+            let newVal = parseFloat(prompt(`Yeni ağırlık girin (-5.0 ile 5.0 arası):`, current.toFixed(1)));
+            if (!isNaN(newVal)) {
+                newVal = Math.max(-5.0, Math.min(5.0, newVal));
+                if (layer === 'ih') weights_ih[i][j] = newVal;
+                else weights_ho[i] = newVal;
+                updateNetwork();
+            }
+        }
+
+        function drawNetwork(hiddenVals, outputVal) {
+            const svg = document.getElementById('networkSVG');
+            svg.innerHTML = ''; // Temizle
+
+            // 1. Çizgileri Çiz (Input -> Hidden)
+            for(let i=0; i<3; i++) {
+                for(let j=0; j<2; j++) {
+                    let w = weights_ih[i][j];
+                    drawLine(svg, coords.inputs[i], coords.hidden[j], w, `changeWeight('ih', ${i}, ${j})`);
+                }
+            }
+
+            // 2. Çizgileri Çiz (Hidden -> Output)
+            for(let j=0; j<2; j++) {
+                let w = weights_ho[j];
+                drawLine(svg, coords.hidden[j], coords.output[0], w, `changeWeight('ho', ${j}, 0)`);
+            }
+
+            // 3. Nöronları Çiz
+            coords.inputs.forEach((pos, i) => drawNode(svg, pos.x, pos.y, inputs[i].toFixed(2), pos.label, "#3b82f6"));
+            coords.hidden.forEach((pos, i) => drawNode(svg, pos.x, pos.y, hiddenVals[i].toFixed(2), pos.label, "#8b5cf6"));
+            drawNode(svg, coords.output[0].x, coords.output[0].y, outputVal.toFixed(3), coords.output[0].label, "#10b981", 30);
+        }
+
+        function drawLine(svg, start, end, weight, onClick) {
+            let color = weight > 0 ? "#4ade80" : "#f87171"; // Pozitif yeşil, negatif kırmızı
+            let thickness = Math.max(1, Math.abs(weight) * 2);
+            
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", start.x); line.setAttribute("y1", start.y);
+            line.setAttribute("x2", end.x); line.setAttribute("y2", end.y);
+            line.setAttribute("stroke", color);
+            line.setAttribute("stroke-width", thickness);
+            line.setAttribute("opacity", "0.6");
+            svg.appendChild(line);
+
+            // Ağırlık Metni
+            const midX = (start.x + end.x) / 2;
+            const midY = (start.y + end.y) / 2;
+            
+            // Etiket arkasına siyah arkaplan (okunabilirlik için)
+            const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            bg.setAttribute("x", midX - 12); bg.setAttribute("y", midY - 10);
+            bg.setAttribute("width", 24); bg.setAttribute("height", 14);
+            bg.setAttribute("fill", "#181825"); bg.setAttribute("rx", "3");
+            svg.appendChild(bg);
+
+            const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            text.setAttribute("x", midX); text.setAttribute("y", midY);
+            text.setAttribute("fill", color);
+            text.setAttribute("class", "node-text weight-text");
+            text.setAttribute("onclick", onClick);
+            text.style.pointerEvents = "all";
+            text.textContent = weight.toFixed(1);
+            svg.appendChild(text);
+        }
+
+        function drawNode(svg, x, y, value, label, color, r=22) {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute("cx", x); circle.setAttribute("cy", y);
+            circle.setAttribute("r", r);
+            circle.setAttribute("fill", "#1e1e2f");
+            circle.setAttribute("stroke", color);
+            circle.setAttribute("stroke-width", "3");
+            svg.appendChild(circle);
+
+            const textVal = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textVal.setAttribute("x", x); textVal.setAttribute("y", y);
+            textVal.setAttribute("class", "node-text");
+            textVal.textContent = value;
+            svg.appendChild(textVal);
+
+            const textLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            textLabel.setAttribute("x", x); textLabel.setAttribute("y", y - r - 10);
+            textLabel.setAttribute("class", "node-label");
+            textLabel.textContent = label;
+            svg.appendChild(textLabel);
+        }
+
+        function updateNetwork() {
+            // Slider verilerini al
+            inputs[0] = parseFloat(document.getElementById('i1').value);
+            inputs[1] = parseFloat(document.getElementById('i2').value);
+            inputs[2] = parseFloat(document.getElementById('i3').value);
+
+            document.getElementById('val-i1').textContent = inputs[0].toFixed(1);
+            document.getElementById('val-i2').textContent = inputs[1].toFixed(1);
+            document.getElementById('val-i3').textContent = inputs[2].toFixed(1);
+
+            // 1. İleri Yönlü Hesaplama (Forward Propagation) - Gizli Katman
+            let hiddenSums = [0, 0];
+            let hiddenVals = [0, 0];
+            for(let j=0; j<2; j++) {
+                hiddenSums[j] = bias_h[j];
+                for(let i=0; i<3; i++) {
+                    hiddenSums[j] += inputs[i] * weights_ih[i][j];
+                }
+                hiddenVals[j] = sigmoid(hiddenSums[j]);
+            }
+
+            // 2. Çıkış Katmanı Hesaplaması
+            let outputSum = bias_o[0];
+            for(let j=0; j<2; j++) {
+                outputSum += hiddenVals[j] * weights_ho[j];
+            }
+            let outputVal = sigmoid(outputSum);
+
+            // Görseli Güncelle
+            drawNetwork(hiddenVals, outputVal);
+
+            // Matematiği Metin Olarak Yazdır
+            document.getElementById('calc-details').innerHTML = `
+                Çıkış Skoru (Z) = <br>
+                (H1 × ${weights_ho[0].toFixed(1)}) + (H2 × ${weights_ho[1].toFixed(1)}) + Bias<br>
+                Z = ${outputSum.toFixed(3)}<br><br>
+                <strong>Sigmoid(${outputSum.toFixed(2)}) = ${outputVal.toFixed(3)}</strong>
+            `;
+
+            // Karar Mekanizması
+            const finalDiv = document.getElementById('final-result');
+            if(outputVal >= 0.5) {
+                finalDiv.innerHTML = "🍎 ELMA<br><span style='font-size:14px;color:#a1a1aa'>(%"+(outputVal*100).toFixed(1)+" İhtimal)</span>";
+                finalDiv.style.backgroundColor = "#7f1d1d";
+                finalDiv.style.color = "#fca5a5";
+            } else {
+                finalDiv.innerHTML = "🍉 KARPUZ<br><span style='font-size:14px;color:#a1a1aa'>(%"+((1-outputVal)*100).toFixed(1)+" İhtimal)</span>";
+                finalDiv.style.backgroundColor = "#14532d";
+                finalDiv.style.color = "#86efac";
+            }
+        }
+
+        // Başlat
+        window.onload = updateNetwork;
+    </script>
+</body>
+</html>
