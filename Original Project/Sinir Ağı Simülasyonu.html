@@ -492,7 +492,7 @@
         state.weights.push(wLayer);
         const bLayer = [];
         for (let j = 0; j < cols; j++) {
-          let bv = (Math.random() * 2 - 1) * 0.3;
+          let bv = 0;
           if (preserve && oldB[L]?.[j] !== undefined) bv = oldB[L][j];
           bLayer.push(bv);
         }
